@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSPF Path Simulator</title>
+    <!-- Load Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        /* Global Styles and Centering */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f7f7f7; 
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            width: 90%; 
+            max-width: 800px; /* Limits the width for centering */
+            margin: 30px auto; /* Centers the block horizontally */
+            padding: 20px; 
+            box-sizing: border-box;
+        }
+
+        /* Card Styling for Sections */
+        .card {
+            background-color: white; 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            text-align: left; /* Reset text alignment inside cards */
+        }
+        
+        /* Header/Title Styling */
+        header {
+            text-align: center; 
+            padding: 16px 0;
+        }
+        .main-title {
+            font-size: 2.25rem; 
+            font-weight: 800; 
+            color: #0D9488; /* Teal color */
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6B7280; 
+        }
+
+        .section-title {
+            font-size: 1.5rem; 
+            font-weight: 700; 
+            color: #374151; 
+            margin-bottom: 16px;
+        }
+
+        /* Network Specific Styling */
+        #network { 
+            width: 100%; 
+            height: 450px; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0.5rem;
+            margin-top: 16px;
+        }
+
+        .source-display {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .source-label {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #4B5563;
+        }
+        .source-value {
+            padding: 4px 12px;
+            background-color: #CCFBF1;
+            color: #0F766E;
+            font-weight: 600;
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-left: 8px;
+        }
+        .legend {
+            margin-left: 32px;
+            display: flex;
+            gap: 16px;
+            font-size: 0.875rem; 
+            color: #4B5563;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+        }
+        .legend-color-red {
+            width: 12px; height: 12px; border-radius: 50%; background-color: #EF4444; margin-right: 4px;
+        }
+        .legend-color-green {
+            width: 12px; height: 12px; border-radius: 50%; background-color: #10B981; margin-right: 4px;
+        }
+        .legend-dash {
+            width: 12px;
+            height: 12px;
+            border-bottom: 2px dashed #9CA3AF;
+            margin-right: 4px;
+        }
+
+        /* Table Styling */
+        .table-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .routing-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .routing-table thead {
+            background-color: #F0FDFA; /* Teal background */
+        }
+        .routing-table th {
+            padding: 12px 24px;
+            text-align: left;
+            font-size: 0.75rem; 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #0D9488;
+        }
+        .routing-table td {
+            padding: 16px 24px;
+            font-size: 0.875rem;
+            color: #374151;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .routing-table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+        .table-source-router {
+            color: #DC2626; /* Red color */
+        }
+    </style>
+    <!-- Load vis.js for network visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" />
+</head>
+<body>
+
+<div id="app">
+    <header>
+        <h1 class="main-title">OSPF Path Simulator</h1>
+        <p class="subtitle">Click any router node to recalculate the Shortest Path First (SPF) tree.</p>
+    </header>
+
+    <!-- Section 1: Network Topology -->
+    <div class="card">
+        <h2 class="section-title">1. Network Topology</h2>
+        
+        <div class="source-display">
+            <span class="source-label">Current Source:</span>
+            <span id="current-source" class="source-value">R1</span>
+            <!-- Legend -->
+            <div class="legend">
+                <span class="legend-item"><span class="legend-color-red"></span> Source</span>
+                <span class="legend-item"><span class="legend-color-green"></span> SPT Link</span>
+                <span class="legend-item"><span class="legend-dash"></span> Non-SPT Link</span>
+            </div>
+        </div>
+
+        <div id="network">
+            <!-- vis.js visualization will be drawn here -->
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #9CA3AF;">Loading Visualization...</div>
+        </div>
+    </div>
+
+    <!-- Section 2: Calculated Routing Table -->
+    <div class="card">
+        <h2 class="section-title">
+            2. Calculated Routing Table for Router <span id="table-source" class="table-source-router">R1</span>
+        </h2>
+        
+        <div class="table-container">
+            <table class="routing-table">
+                <thead>
+                    <tr>
+                        <th>DESTINATION</th>
+                        <th>TOTAL COST</th>
+                        <th>NEXT HOP</th>
+                    </tr>
+                </thead>
+                <tbody id="routing-table-body">
+                    <tr><td colspan="3" style="text-align: center; padding: 16px; color: #6B7280;">Click a router node to calculate the path.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Error/Analysis Box -->
+        <div id="analysis-box" style="margin-top: 16px; padding: 12px; background-color: #FEF3C7; border: 1px solid #FCD34D; color: #B45309; border-radius: 8px; font-size: 0.875rem; display: none;">
+            <!-- Calculation analysis message will appear here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // Ensure you are running your backend (server.js) on port 3001 for this to work.
+    const API_URL = 'http://localhost:3001/api/calculate';
+    const networkContainer = document.getElementById('network');
+    const tableBody = document.getElementById('routing-table-body');
+    const tableSource = document.getElementById('table-source');
+    const currentSource = document.getElementById('current-source');
+    let network = null;
+
+    /**
+     * Converts raw topology data into vis.js format (Nodes and Edges).
+     * @param {Object} topology - The networkTopology object from the backend.
+     * @param {Object} paths - The predecessor paths from the Dijkstra result.
+     * @param {string} startNode - The source router.
+     * @returns {{nodes: Array, edges: Array}} - The vis.js data structure.
+     */
+    function processTopologyData(topology, paths, startNode) {
+        const nodes = Object.keys(topology).map(nodeId => ({
+            id: nodeId,
+            label: nodeId,
+            color: nodeId === startNode ? '#EF4444' : '#60A5FA', // Red for Source, Blue for others
+            font: { size: 16, color: '#333333' }
+        }));
+
+        const edges = [];
+        const addedEdges = new Set(); // To prevent duplicate edges (e.g., R1->R2 and R2->R1)
+
+        for (const source in topology) {
+            for (const destination in topology[source]) {
+                const cost = topology[source][destination];
+                const edgeId = [source, destination].sort().join('-');
+
+                if (!addedEdges.has(edgeId)) {
+                    // Determine if this edge is part of the Shortest Path Tree (SPT)
+                    let isSPT = false;
+                    
+                    // Check if either direction is used in the shortest path tree
+                    // We check if the destination's predecessor is the source OR the source's 
+                    // predecessor is the destination (if cost is symmetrical). 
+                    // For SPT, we check if the path leads to the destination node.
+                    if (paths[destination] === source) {
+                        isSPT = true;
+                    }
+
+                    edges.push({
+                        id: edgeId,
+                        from: source,
+                        to: destination,
+                        label: String(cost),
+                        font: { align: 'top', color: isSPT ? '#10B981' : '#6B7280' },
+                        color: { 
+                            color: isSPT ? '#10B981' : '#A0A0A0', // Green for SPT, Gray for Non-SPT
+                            highlight: '#3B82F6'
+                        },
+                        dashes: !isSPT, // Dashed line for Non-SPT links
+                        width: isSPT ? 3 : 1
+                    });
+                    addedEdges.add(edgeId);
+                }
+            }
+        }
+        return { nodes, edges };
+    }
+
+    /**
+     * Renders the routing table in the HTML.
+     * @param {Object} routingResults - The calculated routing results.
+     */
+    function renderRoutingTable(routingResults) {
+        tableBody.innerHTML = ''; // Clear previous results
+        const destinations = Object.keys(routingResults).filter(dest => routingResults[dest].cost !== 0); // Exclude source router
+        const sortedDestinations = destinations.sort();
+
+        if (sortedDestinations.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 16px; color: #6B7280;">No paths calculated.</td></tr>';
+            return;
+        }
+
+        sortedDestinations.forEach(dest => {
+            const result = routingResults[dest];
+            const cost = result.cost === Infinity ? 'N/A' : result.cost;
+            const nextHop = result.nextHop === null ? '-' : result.nextHop;
+
+            const row = `
+                <tr onmouseover="this.style.backgroundColor='#f9fafb'" onmouseout="this.style.backgroundColor='white'">
+                    <td style="padding: 16px 24px; font-size: 0.875rem; font-weight: 500; color: #1F2937;">${dest}</td>
+                    <td style="padding: 16px 24px; font-size: 0.875rem; color: #4B5563;">${cost}</td>
+                    <td style="padding: 16px 24px; font-size: 0.875rem; font-weight: 600; color: #374151;">${nextHop}</td>
+                </tr>
+            `;
+            tableBody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    /**
+     * Fetches data, updates the UI, and redraws the network.
+     * @param {string} startRouter - The router to calculate from.
+     */
+    async function calculateOSPF(startRouter = 'R1') {
+        tableSource.textContent = startRouter;
+        currentSource.textContent = startRouter;
+        
+        try {
+            const response = await fetch(`${API_URL}?start=${startRouter}`);
+            if (!response.ok) throw new Error('Network response was not ok. Status: ' + response.status);
+            const data = await response.json();
+
+            // Render Table
+            renderRoutingTable(data.routingResults);
+
+            // Render Network Diagram
+            const { nodes, edges } = processTopologyData(data.networkTopology, data.paths, startRouter);
+            const visData = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+            const options = {
+                // Ensure layout is stable
+                layout: { hierarchical: false }, 
+                edges: { smooth: { enabled: true, type: 'dynamic' } },
+                physics: { enabled: true, stabilization: { iterations: 1000 } },
+                interaction: { hover: true, tooltipDelay: 200 }
+            };
+
+            // Initialize or update network
+            if (!network) {
+                network = new vis.Network(networkContainer, visData, options);
+                // Add event listener to recalculate when a node is clicked
+                network.on("click", (params) => {
+                    if (params.nodes.length > 0) {
+                        calculateOSPF(params.nodes[0]);
+                    }
+                });
+            } else {
+                network.setData(visData);
+                // Reset physics for nodes to potentially move to a better layout
+                network.fit();
+            }
+            
+            // Clear any previous analysis warning
+            document.getElementById('analysis-box').style.display = 'none';
+
+        } catch (error) {
+            console.error('Error calculating OSPF:', error);
+            tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 16px; color: #DC2626;">Error: Could not connect to backend server or API failed. Ensure server.js is running.</td></tr>';
+        }
+    }
+
+    // Initial calculation on load
+    window.onload = () => calculateOSPF('R1');
+
+</script>
+</body>
+</html>

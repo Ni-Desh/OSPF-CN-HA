@@ -1,0 +1,13 @@
+{
+  "name": "ospf-backend",
+  "version": "1.0.0",
+  "description": "Backend for OSPF path calculation",
+  "main": "server.jsx",
+  "scripts": {
+    "start": "node server.jsx" 
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
